@@ -1,0 +1,19 @@
+{
+  "name": "frusciante-stremio-addon",
+  "version": "1.0.0",
+  "description": "Stremio addon for Frusciante's film collection with 12h random shuffle",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["stremio", "addon"],
+  "author": "Frusciante",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
