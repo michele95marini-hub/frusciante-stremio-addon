@@ -68,7 +68,7 @@ app.get('/corti/manifest.json', (req, res) => {
   res.json({
     id: 'com.frusciante.corti',
     version: '1.0.0',
-    name: 'Frusciante +120 min',
+    name: 'Frusciante -120 min',
     description: 'Film collection under 120 minutes (3+ stars) - Shuffled every 12 hours',
     logo: 'https://via.placeholder.com/256x256/00e054/ffffff?text=F-120',
     resources: ['catalog'],
@@ -109,7 +109,7 @@ app.get('/lunghi/manifest.json', (req, res) => {
   res.json({
     id: 'com.frusciante.lunghi',
     version: '1.0.0',
-    name: 'Frusciante -120 min',
+    name: 'Frusciante +120 min',
     description: 'Film collection 120+ minutes (3+ stars) - Shuffled every 12 hours',
     logo: 'https://via.placeholder.com/256x256/00e054/ffffff?text=F%2B120',
     resources: ['catalog'],
