@@ -17,7 +17,6 @@ const BASE_URL = process.env.BASE_URL || 'https://frusciante-stremio-addon.onren
 // Dipendenze e middleware
 app.use(cors());
 app.use(express.json());
-app.use(compression());
 
 // Header espliciti (Tizen richiede Content-Type preciso e CORS permissivo)
 app.use((req, res, next) => {
@@ -191,3 +190,4 @@ app.listen(PORT, () => {
   console.log(`🔗 Base URL: ${BASE_URL}`);
   console.log('🔀 Random shuffle every 12 hours');
 });
+
