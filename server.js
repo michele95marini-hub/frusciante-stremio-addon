@@ -74,15 +74,16 @@ function getPage(array, skip) {
   const s = Math.max(0, parseInt(skip) || 0);
   const page = array.slice(s, s + PAGE_SIZE);
 
-  // 🎯 MODIFICA CHIAVE: FORZA L'INCLUSIONE DI POSTER E LOGO
-  // Questo bypassa il problema del caricamento dei metadati sulla TV.
+  // 🎯 NUOVA MODIFICA CHIAVE: Forziamo l'uso di un endpoint più robusto (Cinemeta/TMDB Resolver)
   return page.map(film => ({
     ...film,
-    // Usiamo l'endpoint metahub per risolvere l'immagine da ID IMDb
-    poster: film.id ? `https://images.metahub.space/poster/medium/${film.id}` : undefined,
-    logo: film.id ? `https://images.metahub.space/logo/medium/${film.id}` : undefined,
+    // Questo endpoint ha una maggiore compatibilità con i metadati Stremio su tutte le piattaforme.
+    poster: film.id ? `https://images.strem.io/poster/medium/${film.id}` : undefined,
+    logo: film.id ? `https://images.strem.io/logo/medium/${film.id}` : undefined,
   }));
 }
+
+// ... (Codice restante)
 
 // Helper per inviare json forzando Content-Type preciso
 function sendJson(res, obj) {
@@ -199,3 +200,4 @@ app.listen(PORT, () => {
   console.log(`🔗 Base URL: ${BASE_URL}`);
   console.log('🔀 Random shuffle every 12 hours');
 });
+
