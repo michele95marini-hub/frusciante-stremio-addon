@@ -1,11 +1,10 @@
 // server_tizen_compatible.js
-// Version: 1.0.0
-// Compatibile con Samsung Tizen (6 e 8): header CORS espliciti, Content-Type esatto,
-// paginazione da 100 elementi, compressione e shuffle ogni 12h.
+// Version: 1.0.1
+// Modifiche: Rimosso app.use(compression()) e aggiunto poster/logo per compatibilità TV.
 
 const express = require('express');
 const cors = require('cors');
-const compression = require('compression');
+// const compression = require('compression'); // 🛑 RIMOSSO PER COMPATIBILITÀ CON SMART TV
 const fs = require('fs');
 const path = require('path');
 
@@ -17,6 +16,7 @@ const BASE_URL = process.env.BASE_URL || 'https://frusciante-stremio-addon.onren
 // Dipendenze e middleware
 app.use(cors());
 app.use(express.json());
+// app.use(compression()); // 🛑 RIMOSSO
 
 // Header espliciti (Tizen richiede Content-Type preciso e CORS permissivo)
 app.use((req, res, next) => {
@@ -72,7 +72,16 @@ function ensureShuffled(type) {
 
 function getPage(array, skip) {
   const s = Math.max(0, parseInt(skip) || 0);
-  return array.slice(s, s + PAGE_SIZE);
+  const page = array.slice(s, s + PAGE_SIZE);
+
+  // 🎯 MODIFICA CHIAVE: FORZA L'INCLUSIONE DI POSTER E LOGO
+  // Questo bypassa il problema del caricamento dei metadati sulla TV.
+  return page.map(film => ({
+    ...film,
+    // Usiamo l'endpoint metahub per risolvere l'immagine da ID IMDb
+    poster: film.id ? `https://images.metahub.space/poster/medium/${film.id}` : undefined,
+    logo: film.id ? `https://images.metahub.space/logo/medium/${film.id}` : undefined,
+  }));
 }
 
 // Helper per inviare json forzando Content-Type preciso
@@ -86,7 +95,7 @@ function sendJson(res, obj) {
 app.get('/corti/manifest.json', (req, res) => {
   const manifest = {
     id: 'com.frusciante.corti',
-    version: '1.0.0',
+    version: '1.0.1',
     name: 'Frusciante -120 min',
     description: 'Film collection under 120 minutes (3+ stars) - Shuffled every 12 hours',
     logo: 'https://via.placeholder.com/256x256/00e054/ffffff?text=F-120',
@@ -102,7 +111,7 @@ app.get('/corti/manifest.json', (req, res) => {
 app.get('/lunghi/manifest.json', (req, res) => {
   const manifest = {
     id: 'com.frusciante.lunghi',
-    version: '1.0.0',
+    version: '1.0.1',
     name: 'Frusciante +120 min',
     description: 'Film collection 120+ minutes (3+ stars) - Shuffled every 12 hours',
     logo: 'https://via.placeholder.com/256x256/00e054/ffffff?text=F%2B120',
@@ -164,8 +173,8 @@ app.get('/lunghi/catalog/movie/frusciante_lunghi', (req, res) => {
 app.get('/', (req, res) => {
   const info = {
     name: 'Frusciante Stremio Addons',
-    version: '1.0.0',
-    description: 'Two addons for film collections (3+ stars) with 12h random shuffle',
+    version: '1.0.1',
+    description: 'Two addons for film collections (3+ stars) with 12h random shuffle (Tizen optimized)',
     addons: [
       { name: 'Frusciante -120 min', manifest: `${BASE_URL}/corti/manifest.json`, films: filmsCorti.meta.length },
       { name: 'Frusciante +120 min', manifest: `${BASE_URL}/lunghi/manifest.json`, films: filmsLunghi.meta.length }
@@ -183,11 +192,10 @@ app.get('/health', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log('🎬 Frusciante Stremio Addons Server (Tizen-optimized)');
+  console.log('🎬 Frusciante Stremio Addons Server (Tizen-optimized - v1.0.1)');
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📦 Films corti: ${filmsCorti.meta.length}`);
   console.log(`📦 Films lunghi: ${filmsLunghi.meta.length}`);
   console.log(`🔗 Base URL: ${BASE_URL}`);
   console.log('🔀 Random shuffle every 12 hours');
 });
-
