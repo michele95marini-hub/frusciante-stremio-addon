@@ -1,9 +1,9 @@
 // server.js
-// Versione: 1.0.2 - FINALE & OTTIMIZZATA PER SMART TV (Tizen/Samsung 2024)
+// Versione: 1.0.3 - FINALE & OTTIMIZZATA PER SMART TV (Tizen/Samsung 2024)
 
 const express = require('express');
 const cors = require('cors');
-// La dipendenza 'compression' non viene usata con app.use() per compatibilità Tizen.
+// La dipendenza 'compression' è inclusa per la compatibilità con require, ma NON viene usata (non c'è app.use(compression()))
 const compression = require('compression'); 
 const fs = require('fs');
 const path = require('path');
@@ -12,7 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || 'https://frusciante-stremio-addon.onrender.com';
 
-// Carica i JSON dei film (assumiamo siano corretti)
+// Carica i JSON dei film
 let filmsCorti = require('./films-corti.json');
 let filmsLunghi = require('./films-lunghi.json');
 
@@ -70,7 +70,7 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(express.json());
 
-// 2. LA COMPRESSIONE GZIP È STATA RIMOSSA (Non c'è app.use(compression()))
+// 2. LA COMPRESSIONE GZIP È STATA RIMOSSA (Nessuna chiamata a app.use(compression()))
 
 // 3. Modifica la funzione getPage: Aggiunge il POSTER PLACEHOLDER
 function getPage(array, skip) {
@@ -81,7 +81,7 @@ function getPage(array, skip) {
   return page.map(film => ({
     ...film,
     // Se il film non ha un campo 'poster' nel JSON, usa un placeholder colorato
-    poster: film.poster || `https://via.placeholder.com/500x750/00e054/000000?text=${encodeURIComponent(film.name)}`,
+    poster: film.poster || `https://via.placeholder.com/500x750/00e054/000000?text=${encodeURIComponent(film.name || film.nome)}`,
   }));
 }
 
@@ -91,18 +91,24 @@ function sendJson(res, obj) {
   res.send(JSON.stringify(obj));
 }
 
-// ----------------- MANIFESTS -----------------
+// ----------------- MANIFESTS (AGGIUNTO posterShape) -----------------
 app.get('/corti/manifest.json', (req, res) => {
   const manifest = {
     id: 'com.frusciante.corti',
-    version: '1.0.2',
+    version: '1.0.3', // Versione aggiornata
     name: 'Frusciante -120 min',
     description: 'Film collection under 120 minutes (3+ stars) - Shuffled every 12 hours',
-    logo: `${BASE_URL}/logo-corti.png`, // Usa un logo se lo hai, altrimenti usa BASE_URL
+    logo: `${BASE_URL}/logo-corti.png`, 
     resources: ['catalog'],
     types: ['movie'],
     catalogs: [
-      { type: 'movie', id: 'frusciante_corti', name: 'Frusciante -120 min', extra: [{ name: 'skip', isRequired: false }] }
+      { 
+        type: 'movie', 
+        id: 'frusciante_corti', 
+        name: 'Frusciante -120 min', 
+        extra: [{ name: 'skip', isRequired: false }],
+        posterShape: 'poster' // 🚨 CAMPO CRITICO PER TIZEN
+      }
     ]
   };
   sendJson(res, manifest);
@@ -111,14 +117,20 @@ app.get('/corti/manifest.json', (req, res) => {
 app.get('/lunghi/manifest.json', (req, res) => {
   const manifest = {
     id: 'com.frusciante.lunghi',
-    version: '1.0.2',
+    version: '1.0.3', // Versione aggiornata
     name: 'Frusciante +120 min',
     description: 'Film collection 120+ minutes (3+ stars) - Shuffled every 12 hours',
-    logo: `${BASE_URL}/logo-lunghi.png`, // Usa un logo se lo hai
+    logo: `${BASE_URL}/logo-lunghi.png`, 
     resources: ['catalog'],
     types: ['movie'],
     catalogs: [
-      { type: 'movie', id: 'frusciante_lunghi', name: 'Frusciante +120 min', extra: [{ name: 'skip', isRequired: false }] }
+      { 
+        type: 'movie', 
+        id: 'frusciante_lunghi', 
+        name: 'Frusciante +120 min', 
+        extra: [{ name: 'skip', isRequired: false }],
+        posterShape: 'poster' // 🚨 CAMPO CRITICO PER TIZEN
+      }
     ]
   };
   sendJson(res, manifest);
@@ -172,7 +184,7 @@ app.get('/lunghi/catalog/movie/frusciante_lunghi', (req, res) => {
 app.get('/', (req, res) => {
   const info = {
     name: 'Frusciante Stremio Addons',
-    version: '1.0.2',
+    version: '1.0.3',
     description: 'Two addons for film collections (3+ stars) with 12h random shuffle (Tizen optimized)',
     addons: [
       { name: 'Frusciante -120 min', manifest: `${BASE_URL}/corti/manifest.json`, films: filmsCorti.meta.length },
@@ -191,7 +203,7 @@ app.get('/health', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log('🎬 Frusciante Stremio Addons Server (Tizen-optimized - v1.0.2)');
+  console.log('🎬 Frusciante Stremio Addons Server (Tizen-optimized - v1.0.3)');
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📦 Films corti: ${filmsCorti.meta.length}`);
   console.log(`📦 Films lunghi: ${filmsLunghi.meta.length}`);
