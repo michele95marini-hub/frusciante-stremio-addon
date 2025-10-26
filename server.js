@@ -5,6 +5,7 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const TMDB_API_KEY = process.env.TMDB_API_KEY || ''; // API Key da environment variable
 
 // Abilita CORS per Stremio
 app.use(cors());
@@ -12,6 +13,9 @@ app.use(cors());
 // Carica i JSON dei film
 let filmsCorti = require('./films-corti.json');
 let filmsLunghi = require('./films-lunghi.json');
+
+// Cache per poster TMDB (evita troppe richieste)
+const posterCache = new Map();
 
 // Cache per l'ordine shuffled con timestamp
 let cache = {
@@ -40,6 +44,60 @@ function shouldShuffle(lastShuffleTime) {
   const now = Date.now();
   const twelveHours = 12 * 60 * 60 * 1000; // 12 ore in millisecondi
   return (now - lastShuffleTime) > twelveHours;
+}
+
+// Funzione per ottenere poster da TMDB usando IMDb ID
+async function getPosterFromTMDB(imdbId) {
+  // Controlla cache
+  if (posterCache.has(imdbId)) {
+    return posterCache.get(imdbId);
+  }
+
+  if (!TMDB_API_KEY) {
+    return null; // Nessuna API key configurata
+  }
+
+  try {
+    // Rimuovi "tt" dall'inizio se presente
+    const cleanId = imdbId.replace(/^tt/, '');
+    
+    // Chiama API TMDB per trovare il film tramite IMDb ID
+    const findUrl = `https://api.themoviedb.org/3/find/tt${cleanId}?api_key=${TMDB_API_KEY}&external_source=imdb_id`;
+    const findResponse = await fetch(findUrl);
+    const findData = await findResponse.json();
+
+    if (findData.movie_results && findData.movie_results.length > 0) {
+      const movie = findData.movie_results[0];
+      const posterPath = movie.poster_path;
+      
+      if (posterPath) {
+        const posterUrl = `https://image.tmdb.org/t/p/w500${posterPath}`;
+        posterCache.set(imdbId, posterUrl);
+        return posterUrl;
+      }
+    }
+
+    posterCache.set(imdbId, null);
+    return null;
+  } catch (error) {
+    console.error(`Error fetching poster for ${imdbId}:`, error.message);
+    return null;
+  }
+}
+
+// Funzione per arricchire film con poster
+async function enrichFilmsWithPosters(films) {
+  const enriched = [];
+  
+  for (const film of films) {
+    const poster = await getPosterFromTMDB(film.id);
+    enriched.push({
+      ...film,
+      poster: poster || undefined // undefined = Stremio usa default
+    });
+  }
+  
+  return enriched;
 }
 
 // Funzione per ottenere film con shuffle ogni 12h
@@ -85,21 +143,33 @@ app.get('/corti/manifest.json', (req, res) => {
 });
 
 // Catalog per addon corti
-app.get('/corti/catalog/movie/frusciante_corti.json', (req, res) => {
-  const shuffledFilms = getShuffledFilms('corti');
-  res.json({
-    metas: shuffledFilms
-  });
+app.get('/corti/catalog/movie/frusciante_corti.json', async (req, res) => {
+  try {
+    const shuffledFilms = getShuffledFilms('corti');
+    const filmsWithPosters = await enrichFilmsWithPosters(shuffledFilms.slice(0, 100));
+    res.json({
+      metas: filmsWithPosters
+    });
+  } catch (error) {
+    console.error('Error in corti catalog:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-app.get('/corti/catalog/movie/frusciante_corti/skip=:skip.json', (req, res) => {
-  const shuffledFilms = getShuffledFilms('corti');
-  const skip = parseInt(req.params.skip) || 0;
-  const slicedFilms = shuffledFilms.slice(skip, skip + 100);
-  
-  res.json({
-    metas: slicedFilms
-  });
+app.get('/corti/catalog/movie/frusciante_corti/skip=:skip.json', async (req, res) => {
+  try {
+    const shuffledFilms = getShuffledFilms('corti');
+    const skip = parseInt(req.params.skip) || 0;
+    const slicedFilms = shuffledFilms.slice(skip, skip + 100);
+    const filmsWithPosters = await enrichFilmsWithPosters(slicedFilms);
+    
+    res.json({
+      metas: filmsWithPosters
+    });
+  } catch (error) {
+    console.error('Error in corti catalog with skip:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // ========== ADDON LUNGHI (≥ 120 min) ==========
@@ -126,21 +196,33 @@ app.get('/lunghi/manifest.json', (req, res) => {
 });
 
 // Catalog per addon lunghi
-app.get('/lunghi/catalog/movie/frusciante_lunghi.json', (req, res) => {
-  const shuffledFilms = getShuffledFilms('lunghi');
-  res.json({
-    metas: shuffledFilms
-  });
+app.get('/lunghi/catalog/movie/frusciante_lunghi.json', async (req, res) => {
+  try {
+    const shuffledFilms = getShuffledFilms('lunghi');
+    const filmsWithPosters = await enrichFilmsWithPosters(shuffledFilms.slice(0, 100));
+    res.json({
+      metas: filmsWithPosters
+    });
+  } catch (error) {
+    console.error('Error in lunghi catalog:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-app.get('/lunghi/catalog/movie/frusciante_lunghi/skip=:skip.json', (req, res) => {
-  const shuffledFilms = getShuffledFilms('lunghi');
-  const skip = parseInt(req.params.skip) || 0;
-  const slicedFilms = shuffledFilms.slice(skip, skip + 100);
-  
-  res.json({
-    metas: slicedFilms
-  });
+app.get('/lunghi/catalog/movie/frusciante_lunghi/skip=:skip.json', async (req, res) => {
+  try {
+    const shuffledFilms = getShuffledFilms('lunghi');
+    const skip = parseInt(req.params.skip) || 0;
+    const slicedFilms = shuffledFilms.slice(skip, skip + 100);
+    const filmsWithPosters = await enrichFilmsWithPosters(slicedFilms);
+    
+    res.json({
+      metas: filmsWithPosters
+    });
+  } catch (error) {
+    console.error('Error in lunghi catalog with skip:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // ========== INFO & HEALTH CHECK ==========
@@ -149,7 +231,7 @@ app.get('/', (req, res) => {
   res.json({
     name: 'Frusciante Stremio Addons',
     version: '1.0.0',
-    description: 'Two addons for film collections (3+ stars) with 12h random shuffle',
+    description: 'Two addons for film collections (3+ stars) with 12h random shuffle and TMDB posters',
     addons: [
       {
         name: 'Frusciante -120 min',
@@ -163,13 +245,19 @@ app.get('/', (req, res) => {
       }
     ],
     status: 'online',
+    tmdbEnabled: !!TMDB_API_KEY,
+    postersCached: posterCache.size,
     lastShuffleCorti: new Date(cache.corti.lastShuffle).toISOString(),
     lastShuffleLunghi: new Date(cache.lunghi.lastShuffle).toISOString()
   });
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    tmdbConfigured: !!TMDB_API_KEY
+  });
 });
 
 // ========== START SERVER ==========
@@ -180,11 +268,13 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📦 Films corti: ${filmsCorti.meta.length}`);
   console.log(`📦 Films lunghi: ${filmsLunghi.meta.length}`);
+  console.log(`🎨 TMDB API: ${TMDB_API_KEY ? 'Configured ✅' : 'Not configured ⚠️'}`);
   console.log('');
   console.log('📡 Addon URLs:');
   console.log(`   Corti:  http://localhost:${PORT}/corti/manifest.json`);
   console.log(`   Lunghi: http://localhost:${PORT}/lunghi/manifest.json`);
   console.log('');
   console.log('🔀 Random shuffle: Every 12 hours');
+  console.log('🎨 Posters: TMDB API with cache');
   console.log('=====================================\n');
 });
