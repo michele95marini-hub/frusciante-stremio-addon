@@ -1,11 +1,8 @@
 name: Update Letterboxd Films
 
 on:
-  # Esegui ogni domenica alle 3:00 AM UTC
   schedule:
     - cron: '0 3 * * 0'
-  
-  # Permetti esecuzione manuale
   workflow_dispatch:
 
 jobs:
@@ -54,13 +51,6 @@ jobs:
           git add current_10.json films-corti.json films-lunghi.json
           git commit -m "🎬 Auto-update: Letterboxd films ($(date +'%Y-%m-%d %H:%M'))"
           git push
-      
-      - name: 📢 Notify Render (optional)
-        if: steps.check_changes.outputs.changes == 'true'
-        run: |
-          # Trigger Render reload endpoint (se configurato)
-          # curl -X POST https://your-render-app.onrender.com/reload
-          echo "✅ Update completed - Render will auto-reload on next request"
       
       - name: ℹ️ No changes
         if: steps.check_changes.outputs.changes == 'false'
